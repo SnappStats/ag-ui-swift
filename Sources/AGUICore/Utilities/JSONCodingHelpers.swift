@@ -124,6 +124,29 @@ extension UnkeyedDecodingContainer {
 
 // MARK: - Encoding Extensions
 
+/// Tells a JSON boolean apart from a JSON number in a `JSONSerialization` value.
+///
+/// On Apple platforms both arrive as `NSNumber`, and Swift's bridging answers
+/// either cast for either kind: a parsed `true` answers `as? Int` with `1`, and a
+/// parsed `1` answers `as? Bool` with `true`. So neither cast order is safe; a
+/// value is a boolean only when it IS one (a Swift `Bool`, or the `CFBoolean`
+/// singletons `JSONSerialization` hands back for `true`/`false`).
+package enum JSONBoolean {
+    package static func value(of value: Any) -> Bool? {
+        if let bool = value as? Bool, type(of: value) == Bool.self {
+            return bool
+        }
+        #if canImport(Darwin)
+        if let number = value as? NSNumber, CFGetTypeID(number) == CFBooleanGetTypeID() {
+            return number.boolValue
+        }
+        return nil
+        #else
+        return value as? Bool
+        #endif
+    }
+}
+
 extension KeyedEncodingContainer where K == JSONCodingKeys {
     /// Encodes an arbitrary JSON object (dictionary) from a Swift dictionary.
     ///
@@ -139,12 +162,12 @@ extension KeyedEncodingContainer where K == JSONCodingKeys {
 
                 if let stringValue = value as? String {
                     try encode(stringValue, forKey: codingKey)
+                } else if let boolValue = JSONBoolean.value(of: value) {
+                    try encode(boolValue, forKey: codingKey)
                 } else if let intValue = value as? Int {
                     try encode(intValue, forKey: codingKey)
                 } else if let doubleValue = value as? Double {
                     try encode(doubleValue, forKey: codingKey)
-                } else if let boolValue = value as? Bool {
-                    try encode(boolValue, forKey: codingKey)
                 } else if value is NSNull {
                     try encodeNil(forKey: codingKey)
                 } else if let nestedDict = value as? [String: Any] {
@@ -171,12 +194,12 @@ extension UnkeyedEncodingContainer {
         for value in array {
             if let stringValue = value as? String {
                 try encode(stringValue)
+            } else if let boolValue = JSONBoolean.value(of: value) {
+                try encode(boolValue)
             } else if let intValue = value as? Int {
                 try encode(intValue)
             } else if let doubleValue = value as? Double {
                 try encode(doubleValue)
-            } else if let boolValue = value as? Bool {
-                try encode(boolValue)
             } else if value is NSNull {
                 try encodeNil()
             } else if let nestedDict = value as? [String: Any] {

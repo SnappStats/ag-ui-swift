@@ -23,6 +23,7 @@
  */
 
 import Foundation
+import AGUICore
 
 /// Applies RFC 6902 JSON Patch operations to JSON documents.
 ///
@@ -504,7 +505,7 @@ private struct AnyCodable: Codable {
 
         if value is NSNull {
             try container.encodeNil()
-        } else if let bool = value as? Bool {
+        } else if let bool = JSONBoolean.value(of: value) {
             try container.encode(bool)
         } else if let int = value as? Int {
             try container.encode(int)
